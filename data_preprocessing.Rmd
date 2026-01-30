@@ -1,0 +1,310 @@
+---
+title: "data_preprocessing"
+output: html_document
+date: "2025-12-18"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## 3.1 CMH Flight Data Cleaning
+As I downloaded 2018 and 2019 later separately, I first started my cleaning process by combining them. I then converted the flight date into a date format and reformatted the scheduled departure time to extract the scheduled hour and minute of each flight. This was a critical step as I had planned to merge each flight with the current weather conditions during that time by the hour. I then filtered the data to only include flights with origin CMH so that the analysis only focused on flights departing from John Glenn International Airport. After that, I loaded the 2022–2024 flight data and applied the same cleaning steps so all years were consistent.
+```{r}
+library(dplyr)
+library(lubridate)
+library(readr)
+library(stringr)
+
+
+# load and clean 2018,2019 flight data 
+df2018 <- read_csv("weather_2018.csv", show_col_types = FALSE)
+
+df2019 <- read_csv("ohio_2019_flight.csv", show_col_types = FALSE)
+
+df2018 <- df2018 %>% mutate(across(everything(), as.character))
+df2019 <- df2019 %>% mutate(across(everything(), as.character))
+
+flights_18_19 <- bind_rows(df2018, df2019) #merge 2018 data with 2019
+
+# clean dates and time
+flights_18_19 <- flights_18_19 %>%
+  mutate(
+    FlightDate = suppressWarnings(as.Date(mdy_hms(FL_DATE))),
+    CRS_DEP_TIME_STR = sprintf("%04d", suppressWarnings(as.numeric(CRS_DEP_TIME))),
+    CRS_Dep_Hour = as.numeric(substr(CRS_DEP_TIME_STR, 1, 2)),
+    CRS_Dep_Min  = as.numeric(substr(CRS_DEP_TIME_STR, 3, 4)),
+    DepartureTime = sprintf("%02d:%02d", CRS_Dep_Hour, CRS_Dep_Min)
+  ) %>%
+  filter(ORIGIN == "CMH")  # filter CMH as origin to remove other origins
+
+
+
+# load and clean CMH flights data 2022-2024
+cmh_flights <- read_csv("cmh_flights.csv", show_col_types = FALSE)
+
+cmh_flights <- cmh_flights %>%
+  mutate(
+    FlightDate = suppressWarnings(as.Date(mdy_hms(FL_DATE))),
+    CRS_DEP_TIME_STR = sprintf("%04d", suppressWarnings(as.numeric(CRS_DEP_TIME))),
+    CRS_Dep_Hour = as.numeric(substr(CRS_DEP_TIME_STR, 1, 2)),
+    CRS_Dep_Min  = as.numeric(substr(CRS_DEP_TIME_STR, 3, 4)),
+    DepartureTime = sprintf("%02d:%02d", CRS_Dep_Hour, CRS_Dep_Min)
+  )
+
+# converting to character data type due to an error
+flights_18_19 <- flights_18_19 %>% mutate(across(everything(), as.character))
+cmh_flights   <- cmh_flights   %>% mutate(across(everything(), as.character))
+
+# ensuring columns match due to a merging error
+missing_cols <- setdiff(names(flights_18_19), names(cmh_flights))
+for (col in missing_cols) cmh_flights[[col]] <- NA
+cmh_flights <- cmh_flights[, names(flights_18_19)]
+
+# combine CMH flight data (2022-2024) with CMH flight data (2018-2019)
+cmh_all_years <- bind_rows(flights_18_19, cmh_flights)
+
+# reconverting data type to numeric
+numeric_cols <- c("YEAR","MONTH","DAY_OF_MONTH","DAY_OF_WEEK",
+                  "DEP_DELAY_NEW","DEP_DEL15","DISTANCE",
+                  "CRS_Dep_Hour","CRS_Dep_Min")
+
+cmh_all_years[numeric_cols] <-
+  lapply(cmh_all_years[numeric_cols], function(x) suppressWarnings(as.numeric(x)))
+
+```
+
+## 3.2 CMH Weather Data Cleaning
+
+Again, because I added the years 2018 and 2019 after the initial download of 2022–2024, I started my data cleaning by first cleaning them. I converted the weather date and time into a single datetime variable and then extracted the weather date and hour from it, as initially they were in different formats across years. Again, this extraction of date and hour was critical, as I used them later to merge this dataset with the corresponding flight.
+
+I realized that in some cases there was more than one entry for the same hour, so in the next step of my cleaning I removed missing values and also removed data that contained more than one weather entry for the same hour. After cleaning, I realized that some variables present in 2018 and 2019 were not present in 2022–2024, so I added the missing columns to make sure they all had the same structure, and only then merged all the weather data across the five years.
+
+```{r}
+
+# load and clean weather data across 2018, 2019 and 2022-2024
+weather18     <- weather18 <- read_csv("weather_2018.csv", show_col_types = FALSE) %>% mutate(across(everything(), as.character))
+weather19 <- read_csv("2019_weather.csv", show_col_types = FALSE) %>% mutate(across(everything(), as.character))
+weather22_24 <- read_csv("22-24 weather.csv", show_col_types = FALSE)
+
+#handle missing values and extract time values to match it with flight time
+clean_weather <- function(df) {
+  df %>%
+    mutate(
+      WEATHER_DATETIME = suppressWarnings(ymd_hms(DATE)),
+      WEATHER_DATETIME = if_else(is.na(WEATHER_DATETIME),
+                                 suppressWarnings(mdy_hms(DATE)),
+                                 WEATHER_DATETIME),
+      WEATHER_DATE = as.Date(WEATHER_DATETIME),
+      WEATHER_HOUR = hour(WEATHER_DATETIME)
+    ) %>%
+    filter(!is.na(WEATHER_DATE)) %>%
+    arrange(WEATHER_DATETIME) %>%
+    distinct(WEATHER_DATE, WEATHER_HOUR, .keep_all = TRUE)
+}
+
+weather18_clean    <- clean_weather(weather18)
+weather19_clean    <- clean_weather(weather19)
+weather22_24_clean <- clean_weather(weather22_24)
+
+# standardize columns
+all_weather_cols <- union(names(weather18_clean),
+                     union(names(weather19_clean), names(weather22_24_clean)))
+
+fix_cols <- function(df, all_cols) {
+  missing <- setdiff(all_cols, names(df))
+  for (col in missing) df[[col]] <- NA
+  df[, all_cols]
+}
+
+weather18_clean    <- fix_cols(weather18_clean, all_weather_cols)
+weather19_clean    <- fix_cols(weather19_clean, all_weather_cols)
+weather22_24_clean <- fix_cols(weather22_24_clean, all_weather_cols)
+
+#combine all cleaned wetaher data across years 18,19, 22-24
+weather_all <- bind_rows(weather18_clean, weather19_clean, weather22_24_clean)
+
+# convert numeric weather columns
+weather_numeric_cols <- c(
+  "HourlyDryBulbTemperature","HourlyWindSpeed",
+  "HourlyRelativeHumidity","HourlyVisibility",
+  "HourlyWindDirection","HourlyPrecipitation",
+  "HourlyAltimeterSetting","HourlyDewPointTemperature"
+)
+
+weather_all <- weather_all %>%
+  mutate(across(any_of(weather_numeric_cols),
+                ~ suppressWarnings(as.numeric(.))))
+
+```
+
+## 3.3 Merging CMH December Flight and Weather Data
+
+After cleaning the flight and weather data sets separately, as the last step of my data preparation I merged them using a left join to ensure that all flights were included even though some weather data might be missing. Once I merged them, I was able to see which weather variables seemed to be the most relevant to flights in December, so I chose the key variables from both datasets that I thought would be critical in my analysis.
+
+The variables from the flight data included time variables such as day of the month, day of the week, scheduled hour, date, whether the flight was delayed or not, and the amount of delay. Since the weather data had 141 variables, I chose the ones that seemed the most relevant, which ended up being the hourly variables: `"HourlyDryBulbTemperature"`, `"HourlyWindSpeed"`, `"HourlyRelativeHumidity"`, `"HourlyVisibility"`, `"HourlyWindDirection"`, `"HourlyPrecipitation"`, `"HourlyAltimeterSetting"`, and `"HourlyDewPointTemperature"`.
+
+```{r}
+cmh_all_years_clean <- cmh_all_years %>%
+  mutate(
+    FlightDate   = as.Date(FlightDate),
+    CRS_Dep_Hour = as.numeric(CRS_Dep_Hour)
+  )
+# fix data types
+weather_all <- weather_all %>%
+  mutate(
+    WEATHER_DATE = as.Date(WEATHER_DATE),
+    WEATHER_HOUR = as.numeric(WEATHER_HOUR)
+  )
+
+# merge flight and weather data together by the hour
+cmh_all_years_weather <- cmh_all_years_clean %>%
+  left_join(weather_all,
+            by = c("FlightDate" = "WEATHER_DATE",
+                   "CRS_Dep_Hour" = "WEATHER_HOUR"))
+
+
+
+# final data set key variable selection
+keep_vars <- c(
+  "YEAR", "DAY_OF_MONTH", "DAY_OF_WEEK",
+  "OP_UNIQUE_CARRIER", "DEST", "DISTANCE",
+  "FlightDate", "DepartureTime",
+  "CRS_Dep_Hour", "CRS_Dep_Min",
+  "DEP_DEL15", "DEP_DELAY_NEW",
+  "HourlyDryBulbTemperature", "HourlyWindSpeed",
+  "HourlyRelativeHumidity", "HourlyVisibility",
+  "HourlyWindDirection", "HourlyPrecipitation",
+  "HourlyAltimeterSetting", "HourlyDewPointTemperature"
+)
+
+#final cleaned data set
+final_df_clean <- cmh_all_years_weather %>%
+  select(any_of(keep_vars))
+
+
+# fix remaining missing values
+weather_vars <- c(
+  "HourlyDryBulbTemperature","HourlyWindSpeed",
+  "HourlyRelativeHumidity","HourlyVisibility",
+  "HourlyWindDirection","HourlyPrecipitation",
+  "HourlyAltimeterSetting","HourlyDewPointTemperature"
+)
+
+final_df_clean[weather_vars] <- lapply(
+  final_df_clean[weather_vars],
+  function(x) replace(x, is.na(x), median(x, na.rm = TRUE))
+)
+
+final_df_clean$DEP_DEL15[is.na(final_df_clean$DEP_DEL15)] <-
+  median(final_df_clean$DEP_DEL15, na.rm = TRUE)
+
+final_df_clean$DEP_DELAY_NEW[is.na(final_df_clean$DEP_DELAY_NEW)] <-
+  median(final_df_clean$DEP_DELAY_NEW, na.rm = TRUE)
+
+```
+
+## 3.4 Feature Engineering
+
+As I knew how congestion in the airports could further increase delay risk, I wanted to identify how high flight traffic hours and high flight traffic days and see how much they affected delay rates. In order to do this, I aggregated the flight numbers per hour and per day in December on the final cleaned data set. In the end, I had two new variables, flights_per_day and flights_per_hour, that I thought would be very useful for my project. Especially because I assumed Fridays and Sundays would be heavily congested with possibly more delays, and I was also curious to see which hours seemed to be peak congestion times.
+
+As the next part of my data preparation, I wanted to get my data ready for analyzing trends in carrier type and delay rate, as well as destination and delay rates. I knew that there was a large range in my carrier and destination variables in the data set. What I mean by this is that there were some carriers and destinations that operated at a much larger scale, flew significantly more flights, and had larger operational capacity, while others were smaller, regional, or served fewer routes. I was very interested in seeing how this difference in scale and popularity would affect delays at CMH in December.
+
+Initially, I planned on using the destination and carrier variables directly to see which carriers and destinations contributed most to delays. However, after running the models, I saw that this created over 50 dummy variables and made interpretation very difficult, while also not improving model performance. After seeing this in my earlier findings, I decided to take a different approach and create new variables that categorized the most popular destinations and carriers based on flight volume, and then examine whether flying with or to these high-traffic groups affected delay likelihood.
+
+Therefore, I created two new variables, HOT_DEST and HOT_CARRIER, which have binary values. These variables take a value of 1 if the destination or carrier falls within the top quartile of total flight counts in December, and 0 otherwise. This allowed me to capture the effect of flying with very popular carriers or to very popular destinations, which are more likely to experience congestion-related delays, without hurting the interpretation of my analysis. The destinations and carriers are listed below.
+
+### Popular Destinations (Top Quartile by Flight Volume)
+
+-   **ORD** – Chicago O’Hare International Airport
+
+-   **ATL** – Hartsfield–Jackson Atlanta International Airport
+
+-   **LGA** – LaGuardia Airport (New York City)
+
+-   **MCO** – Orlando International Airport
+
+-   **CLT** – Charlotte Douglas International Airport
+
+-   **EWR** – Newark Liberty International Airport
+
+-   **DCA** – Ronald Reagan Washington National Airport
+
+-   **DTW** – Detroit Metropolitan Wayne County Airport
+
+-   **JFK** – John F. Kennedy International Airport
+
+### **Popular Carriers (Top Quartile by Flight Volume)**
+
+-   **WN** – Southwest Airlines
+
+-   **YX** – Republic Airways
+
+-   **MQ** – Envoy Air
+
+-   **AA** – American Airlines
+
+-   **DL** – Delta Air Lines
+
+I will be looking at the effect of these destinations and carriers as a group throughout this analysis, which is why I wanted to specifically list them here for clarity.
+
+```{r}
+
+final_df_clean <- final_df_clean %>%
+  group_by(FlightDate) %>%
+  mutate(flights_per_day = n()) %>%
+  ungroup() %>%
+  group_by(FlightDate, CRS_Dep_Hour) %>%
+  mutate(flights_per_hour = n()) %>%
+  ungroup()
+
+
+delayed_by_carrier <- final_df_clean %>%
+  group_by(OP_UNIQUE_CARRIER) %>%
+  summarise(
+    delayed_flights = sum(DEP_DEL15 == 1, na.rm = TRUE),
+    total_flights = n(),
+    delay_rate = delayed_flights / total_flights,
+    .groups = "drop"
+  )
+
+dest_popularity <- final_df_clean %>%
+  group_by(DEST) %>%
+  summarise(
+    total_flights = n(),
+    .groups = "drop"
+  ) %>%
+  filter(total_flights > 30) %>%
+  arrange(desc(total_flights))
+
+carrier_popularity <- final_df_clean %>%
+  group_by(OP_UNIQUE_CARRIER) %>%
+  summarise(
+    total_flights = n(),
+    .groups = "drop"
+  ) %>%
+  filter(total_flights > 30) %>%
+  arrange(desc(total_flights))
+
+dest_cutoff <- quantile(dest_popularity$total_flights, 0.75)
+carrier_cutoff <- quantile(carrier_popularity$total_flights, 0.75)
+
+hot_dest_list <- dest_popularity %>%
+  filter(total_flights >= dest_cutoff) %>%
+  pull(DEST)
+
+hot_carrier_list <- carrier_popularity %>%
+  filter(total_flights >= carrier_cutoff) %>%
+  pull(OP_UNIQUE_CARRIER)
+
+#add the 
+final_df_clean <- final_df_clean %>%
+  mutate(
+    HOT_DEST = ifelse(DEST %in% hot_dest_list, 1, 0),
+    HOT_CARRIER = ifelse(OP_UNIQUE_CARRIER %in% hot_carrier_list, 1, 0)
+  )
+```
+```
+
+
