@@ -1,0 +1,947 @@
+---
+title: "Final Report D352"
+output:
+  html_document:
+    code_folding: hide
+    self_contained: true
+date: "2025-12-08"
+---
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+# 1. Introduction
+
+Delays are a frustrating concept, but travel delays, especially flight delays, might be the ones that cost everyone the most. Considering the logistical, financial, and mental costs to both passengers and stakeholders involved in the operation, the cost of even one delayed flight is very high due to the chain reaction of costs it creates. For example, one delayed flight can cause passengers with connecting flights to possibly miss them, cause the airline to lose reputation, create stress for operational workers, and increase overall tension during the flight. The delayed flight can also arrive late and make the next flight late as well, since the gate needs to be available, and so on. Because of this, a negative feedback loop is created just from one delayed flight.
+
+This high cost made me ask what if we could predict whether a flight gets delayed or not. Knowing that information is vital for both passengers and operational stakeholders. For passengers, it would mean selecting hours, carriers, and times that decrease their chance of delays. For operational stakeholders, it would mean planning according to weather conditions, times, days, and carriers.
+
+To answer this question, it is important to understand what factors cause flight delays. While flight operations are complex and involve many factors, weather conditions, late-arriving aircraft, and air traffic congestion are the most common causes of delays, which is why I wanted to focus my research around these factors. Identifying these factors made me ask when the time of year is when weather is the harshest and travel is at its peak. The answer to that question is winter and holiday times, which led me to define my scope even further to the month of December. December is the month of travel, whether that is students coming back from college or families getting together for New Year’s. There is a rush to be somewhere all around the world. However, the effects of weather can be seen more clearly in places with harsh winters, which is why I chose Columbus, Ohio and John Glenn International Airport as my analysis origin.
+
+Therefore, this project will be focused on looking at what weather and flight characteristics are most significnat in predicting delays.
+
+## 1.1 Background & Motivation
+
+My motivation for this project comes from my experience as an international student who flies from Columbus to Chicago to Frankfurt to reach my final destination, Istanbul. This is a flight route with two layovers in different countries, all of which require many critical steps that can be disrupted by a delay. That is why I wanted to get more information on what factors increase the chance of delays, so I could use that information when selecting my flights.
+
+In addition, I think this is something everyone would like to know. Having some idea of what factors might be increasing their chance of delays in the month of December is important, especially when everyone is in a rush either to go to their families for the holidays or to be back from the holidays in time for work. I thought this would be a relatable topic that interested everyone, because even knowing a small detail, such as which time of day is more likely for delays, could mean making or missing a holiday, job interview, exam, and so much more.
+
+In addition, with the large amount of options we now have, where there are numerous flights per day to the same exact destination but on different dates, times, and carriers that fly under different weather conditions, it is very easy to experience decision fatigue. Which is why I wanted to do a project that would help ease the stress of having so many options by gaining information on simple details like the weather, day, carrier, and more that might have a large influence on delays that we are not aware of.
+
+## 1.2 Research Question and Additional Interests
+
+The main research question for this project is:
+
+**Can flight delays for December departures from John Glenn International Airport (CMH) be predicted using weather conditions and flight characteristics as well as the scale of destination and carrier.**
+
+In addition to my main question, I am specifically curious to see what days and hours in December are more likely for a flight to be delayed. Time and date are the most critical variables for passengers, especially since they are rushing either to holidays or rushing back to their jobs in December, which makes the timing of their flight very critical. Because of this, I am very curious to see how these metrics change delay rates.
+
+I am also interested to see the relationship between carrier and destination opeartoin scale and delat rates. Are larger, more flioght opearting carriers and larger more trafficed destination prone to more delays? Or is it the opposite that small scale more rgeonal carriers and low traffic destinations are more prone to delays? The answer to these quetsion can go both ways as a large scale carrier detsination would mean more operations, more risk, more traffic and more epxosure to stacked delays but it also emans more operational capacity to manage minimize delays. Conversely, small scale carriers and destinations that don;t have as much flight can mean more resources to be distributed among a lower number of flights whihc can amximizee delay amnagement and prevention. While also smallk scale can mean lower operationla capacity and therefore less caoacity to magae and prevent delays.This relationship is an important one to know, as it would help passengers choose a carrier of the scale that coreposns to better delay prevention or be prepered for a  delay or an on-time flight based on the scale of the airport of their destination. these are critical infomration to havce durung the chaotic timewise urgent month of decemebr. 
+
+## 1.3 Data Sources And Key Variables
+
+For my research, I have two main data sets:
+
+1.  **Marketing Carrier On-Time Performance:** This is a data set that contains flight-related data for each flight. I downloaded this data set from the Bureau of Transportation Statistics. While downloading, I filtered the geography to Ohio and filtered the time period to the years 2018, 2019, 2022, 2023, and 2024, intentionally excluding 2020 and 2021 to separate my research from the effects of COVID-19. I also selected all the variables that would help me understand delay rates. When I combined all five years, the data set contained 18,793 observations and 41 variables.
+   
+2.  **Local Climatological Data:** This data set contains hourly, daily, and monthly weather information, which I sourced from the National Center for Environmental Information. To match the time range used for the flight performance data, I selected the years 2018–2019 and 2022–2024. I did not have the option to filter variables for this data set while downloading, so when all years were combined, the data set contained 37,094 observations and 141 variables. 
+
+These were the raw data sets. The main data set that will be used throughout this research is the cleaned, filtered to origin CMH and month as December, and combined version of these raw data sets. I combined the two raw data sets by merging them by the hour of weather, so that each row, which corresponds to a single flight departing from CMH, also contains the necessary weather data for that hour. In the end, the final data set had
+
+ **Key Flight Variables:** day_of_month, day_of_week, distance, op_unique_carrier, dest, crs_dep_hour, dep_delay_15
+ **Key Weather Variables:** hourly altimeter setting,  hourly dry bulb temeprature, hourlydew tenperature, hourly visibilty, hourly wind speed, hourly wind direction, hourly_relative humidity, hourly_precipiipttaion
+ **Key Engineered Variables:**  HOT_CARRIER, HOT_DEST, flight_per_hour, flight_per_day
+ 
+# 2. Ethical Considerations
+
+## 2.1 Stakeholders
+
+All data used in this anlaysis is public ad does not contain any private, .. infomration. One crticial area to be consious of is the grouping of carriers and destinations by the amount of flight that leaves with and for them. In the feuature engineering scetion i grouped the top quartile of cariers and destinations with the most flights from cmh in dceeber together and gave them the binary value of 1 as the most used carriers and destiations ot see their effects. Thhroughout this analysis, reuslts on the effects of high volume cariers and destinations will be absed on their average effect same goes for the lower volum e arriers and destinations which were given the value 0. Their effect in predicting delays will also be genesralized. Threfroe, the findingsfron those two variabes does not mean individual effects of a single carier or detsination had that. its grouopign therefore the carriers and destiantions should not be subjected to. as it can lead to wrong bias and conslusions.
+
+# 3.Data Cleaning
+
+I had initially downloaded 2022-2024 flight data but then after my seeing some imbalance in my earlier findings with the models not performing as expected I thought a larger sample size would be helpful which is why I had to download 2018 and 2019 data seperately and then combine them.
+
+## 3.1 CMH Flight Data Cleaning
+
+As I downloaded 2018 and 2019 later separately, I first started my cleaning process by combining them. I then converted the flight date into a date format and reformatted the scheduled departure time to extract the scheduled hour and minute of each flight. This was a critical step as I had planned to merge each flight with the current weather conditions during that time by the hour. I then filtered the data to only include flights with origin CMH so that the analysis only focused on flights departing from John Glenn International Airport. After that, I loaded the 2022–2024 flight data and applied the same cleaning steps so all years were consistent.
+
+## 3.2 CMH Weather Data Cleaning
+
+Again, because I added the years 2018 and 2019 after the initial download of 2022–2024, I started my data cleaning by first cleaning them. I converted the weather date and time into a single datetime variable and then extracted the weather date and hour from it, as initially they were in different formats across years. Again, this extraction of date and hour was critical, as I used them later to merge this dataset with the corresponding flight.
+
+I realized that in some cases there was more than one entry for the same hour, so in the next step of my cleaning I removed missing values and also removed data that contained more than one weather entry for the same hour. After cleaning, I realized that some variables present in 2018 and 2019 were not present in 2022–2024, so I added the missing columns to make sure they all had the same structure, and only then merged all the weather data across the five years.
+
+## 3.3 Merging CMH December Flight and Weather Data
+
+After cleaning the flight and weather data sets separately, as the last step of my data preparation I merged them using a left join to ensure that all flights were included even though some weather data might be missing. Once I merged them, I was able to see which weather variables seemed to be the most relevant to flights in December, so I chose the key variables from both datasets that I thought would be critical in my analysis.
+
+The variables from the flight data included time variables such as day of the month, day of the week, scheduled hour, date, whether the flight was delayed or not, and the amount of delay. Since the weather data had 141 variables, I chose the ones that seemed the most relevant, which ended up being the hourly variables: `"HourlyDryBulbTemperature"`, `"HourlyWindSpeed"`, `"HourlyRelativeHumidity"`, `"HourlyVisibility"`, `"HourlyWindDirection"`, `"HourlyPrecipitation"`, `"HourlyAltimeterSetting"`, and `"HourlyDewPointTemperature"`.
+
+
+
+## 3.4 Feature Engineering
+
+As I knew how congestion in the airports could further increase delay risk, I wanted to identify how high flight traffic hours and high flight traffic days and see how much they affected delay rates. In order to do this, I aggregated the flight numbers per hour and per day in December on the final cleaned data set. In the end, I had two new variables, flights_per_day and flights_per_hour, that I thought would be very useful for my project. Especially because I assumed Fridays and Sundays would be heavily congested with possibly more delays, and I was also curious to see which hours seemed to be peak congestion times.
+
+As the next part of my data preparation, I wanted to get my data ready for analyzing trends in carrier type and delay rate, as well as destination and delay rates. I knew that there was a large range in my carrier and destination variables in the data set. What I mean by this is that there were some carriers and destinations that operated at a much larger scale, flew significantly more flights, and had larger operational capacity, while others were smaller, regional, or served fewer routes. I was very interested in seeing how this difference in scale and popularity would affect delays at CMH in December.
+
+Initially, I planned on using the destination and carrier variables directly to see which carriers and destinations contributed most to delays. However, after running the models, I saw that this created over 50 dummy variables and made interpretation very difficult, while also not improving model performance. After seeing this in my earlier findings, I decided to take a different approach and create new variables that categorized the most popular destinations and carriers based on flight volume, and then examine whether flying with or to these high-traffic groups affected delay likelihood.
+
+Therefore, I created two new variables, HOT_DEST and HOT_CARRIER, which have binary values. These variables take a value of 1 if the destination or carrier falls within the top quartile of total flight counts in December, and 0 otherwise. This allowed me to capture the effect of flying with very popular carriers or to very popular destinations, which are more likely to experience congestion-related delays, without hurting the interpretation of my analysis. The destinations and carriers are listed below.
+
+### Popular Destinations (Top Quartile by Flight Volume)
+
+-   **ORD** – Chicago O’Hare International Airport
+
+-   **ATL** – Hartsfield–Jackson Atlanta International Airport
+
+-   **LGA** – LaGuardia Airport (New York City)
+
+-   **MCO** – Orlando International Airport
+
+-   **CLT** – Charlotte Douglas International Airport
+
+-   **EWR** – Newark Liberty International Airport
+
+-   **DCA** – Ronald Reagan Washington National Airport
+
+-   **DTW** – Detroit Metropolitan Wayne County Airport
+
+-   **JFK** – John F. Kennedy International Airport
+
+### **Popular Carriers (Top Quartile by Flight Volume)**
+
+-   **WN** – Southwest Airlines
+
+-   **YX** – Republic Airways
+
+-   **MQ** – Envoy Air
+
+-   **AA** – American Airlines
+
+-   **DL** – Delta Air Lines
+
+I will be looking at the effect of these destinations and carriers as a group throughout this analysis, which is why I wanted to specifically list them here for clarity.
+
+
+# 4. Exploratory Data Analysis
+
+## 4.1 Delay Distribution in December
+The bar plot below displays the amount of on-time and delayed departure flights from CMH in December over 5 years (2018-2019, 2022-2024). There are around 15500 on time flights and around 3000 delayed flights. This plot revelas that majority of the flights have departed on- time in december. This plot is cruical for the sttaistcal modeling part of this project as it revals the imbalance betwee on-time and dleayed flights.
+
+```{r}
+library(dplyr)
+library(lubridate)
+library(readr)
+library(stringr)
+library(scales)
+library(ggplot2)
+library(tidyr)
+final_df_clean <- read_csv("final_df_clean.csv", show_col_types = FALSE)
+
+
+# --- 1. Bar chart: flights delayed 15+ mins ---
+ggplot(final_df_clean, aes(x = factor(DEP_DEL15), fill = factor(DEP_DEL15))) +
+  geom_bar() +
+  scale_fill_manual(values = c("0" = "#6B8E23", "1" = "#B22222")) +
+  labs(
+    title = "Flights Delayed 15+ Minutes",
+    x = "DEP_DEL15 (0 = On Time, 1 = Delayed)",
+    y = "Number of Flights"
+  ) +
+  theme_minimal()
+```
+
+## 4.2 Delay Rate by Airline in December
+Next, I wanted to look at how dela rates changed by carrier. The plot below reveals the total number of flights, number of delayed flights and delay rate calucated by dividing delayed flight number by total flights. Looking at the plot, the first 5 carriers (WN, YX, MQ, AA, DL)  on the plot are the variables that take the value 1 in my HOT_DEST varible (carriers whose flight counts fall within the top quartile of total flight numbers). This plot visualizes how much of total flights are shared among these carriers on an individual level. It also reveals that delay rate seems to increase as we go lower on the y-axis. The lower half has higher delay rates compared to the upper half, displaying that as the total number of flights decrease, delay rate for carriers seems to increase as each delayed flight constitutes a larger portion
+
+```{r}
+
+delayed_by_carrier <- final_df_clean %>%
+  group_by(OP_UNIQUE_CARRIER) %>%
+  summarise(
+    delayed_flights = sum(DEP_DEL15 == 1, na.rm = TRUE),
+    total_flights = n(),
+    delay_rate = delayed_flights / total_flights,
+    .groups = "drop"
+  )
+
+ggplot(delayed_by_carrier,
+       aes(y = reorder(OP_UNIQUE_CARRIER, total_flights))) +
+
+  geom_col(aes(x = total_flights),
+           fill = "#6B8E23", alpha = 0.6) +
+
+  geom_col(aes(x = delayed_flights),
+           fill = "darkred") +
+
+  geom_text(aes(x = total_flights,
+                label = scales::percent(delay_rate, accuracy = 1)),
+            hjust = -0.1,
+            size = 3) +
+
+  labs(
+    title = "Total Flights, Delayed Flights, and Delay Rate by Carrier",
+    x = "Number of Flights",
+    y = "Carrier"
+  ) +
+
+  theme_minimal(base_size = 14)
+```
+
+## 4.3 Delay Rate By Time of Day in December
+The plot below portrays the relationship between flight volume and delay rates on an hourly basis.The green bars represnet the number of flights while the red line represents the delay rates. The surprising finding is flight volume at CMH in December drastically peaks at 6 am yet there is almost no change in delay rates. Sowing that flight traffic and congestion may not be very significant on delays as I initially had thought. This might be because CMH is prepared for this flight traffic if it is a regular pattern.
+
+```{r}
+
+delay_by_hour <- final_df_clean %>%
+  group_by(CRS_Dep_Hour) %>%
+  summarise(
+    n = n(),
+    delay_rate = mean(DEP_DEL15, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+ggplot(delay_by_hour, aes(x = CRS_Dep_Hour)) +
+  geom_col(aes(y = n), fill = "#6B8E23", alpha = 0.6) +
+  geom_line(aes(y = delay_rate * max(n)),
+            color = "red4", linewidth = 1.2) +
+  geom_point(aes(y = delay_rate * max(n)),
+             color = "red4") +
+  scale_y_continuous(
+    name = "Number of Flights",
+    sec.axis = sec_axis(~ . / max(delay_by_hour$n),
+                        labels = scales::percent,
+                        name = "Delay Rate")
+  ) +
+  labs(
+    title = "Flight Volume and Delay Rate by Scheduled Departure Hour",
+    x = "Scheduled Departure Hour"
+  ) +
+  theme_minimal(base_size = 14)
+```
+
+## 4.4 Heat Map of Delay Rates by Day and Time in December
+
+The heatmap below shows the distribution of delayed flights across days and hours in December over they years of 2018-2019 and 2022-2024. The delay rates seem to increase as we move up on the y-axis and towards the right on the x-axis. Meaning that as we get closer to the end of december delay rates in CMH increases. Which is very intuitive as there will be more flight demand with christmas and winter break travelling. One interesting find here is that as there are very few after 9pm flights before the 15th. But, after the 15th not only the flight number increase, but also the delay rate increases. Potentially, due to riskier weather at later night times, but potentially even due to CMH's limited operational capacity for late night flights. Especially bceause they seem to operate much less, or not at all after 8-9 pm, on a day that's not affected by the christmas and winter break traveling (before the 15th). Overall, this plot is cruical in showing the seemingly direct and large effect date and hour have on delays. 
+
+```{r}
+
+heatmap_data <- final_df_clean %>%
+  group_by(DAY_OF_MONTH, CRS_Dep_Hour) %>%
+  summarise(
+    delay_rate = mean(DEP_DEL15, na.rm = TRUE),
+    n = n(),
+    .groups = "drop"
+  ) %>%
+  filter(n > 5)
+
+ggplot(heatmap_data, aes(
+  x = CRS_Dep_Hour,
+  y = DAY_OF_MONTH,
+  fill = delay_rate
+)) +
+  geom_tile(color = "white") +
+  scale_fill_gradientn(
+    colors = c("#6B8E23", "#E6C79C", "#8B0000"),
+    values = scales::rescale(c(0, 0.2, 0.6)),
+    name = "Delay Rate"
+  ) +
+  scale_x_continuous(breaks = 5:23) +
+  labs(
+    title = "Heatmap of Delay Rate by Day and Scheduled Departure Hour",
+    x = "Scheduled Departure Hour",
+    y = "Day of Month"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(panel.grid = element_blank())
+
+
+```
+
+## 4.5 December Delay Rates Yearly Trends
+Lastly, I wanted explore a weather variable that I thought would have a significant effect on delays and that is wind speed. And, it looks like there is higher delay rates at higher wind speed, showing a direct inverse relationship. This is very intuitive at higher wind speed operational risk and turbulence increases which may cause flights to be delayed to maximize safety and comfort.
+
+```{r}
+
+wind_hourly <- final_df_clean %>%
+  group_by(CRS_Dep_Hour) %>%
+  summarise(
+    avg_wind_speed = mean(HourlyWindSpeed, na.rm = TRUE),
+    delay_rate = mean(DEP_DEL15, na.rm = TRUE),
+    n = n(),
+    .groups = "drop"
+  ) %>%
+  filter(n > 50)
+
+ggplot(wind_hourly,
+       aes(x = avg_wind_speed, y = delay_rate)) +
+  geom_point(color = "red4", size = 3, alpha = 0.8) +
+  geom_smooth(method = "lm", color = "darkolivegreen4", se = TRUE) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  labs(
+    title = "Wind Speed and Departure Delay Rate",
+    subtitle = "Hourly averages; delays defined as 15+ minutes",
+    x = "Average Hourly Wind Speed",
+    y = "Delay Rate"
+  ) +
+  theme_minimal(base_size = 14)
+
+```
+
+# 5. Statistical Analysis
+
+## 5.1 Train/Test Split
+
+To best predict delay rates, I wanted to split my model into 70% training and 30% test. This split is a crucial step in ensuring my model is predicting well. If it is predicting only on training data, then it overfits by “memorizing” the training data, becoming too aware of noise and predicting poorly. This causes the model to have high variance and low bias, meaning it is too aware of noise in the training dataset and does not predict well on unseen data. On the other hand, if it tests on the majority of the dataset, then it underfits, as it does not have enough data to actually understand the trend, which in the end causes high bias and low variance. Meaning, the model generalizes the data too much and misses the real pattern. Therefore, this splitting step is critical in balancing variance and bias in my model.
+
+To have a good predictive model, I decided to create the `model_df` data, which included all the key variables that I thought would be the most significant in predicting delay rates. This ended up being the 17 key variables I identified in my “Data Sources and Key Variables” section, including `DEP_DEL15`, which is the target variable I am trying to predict.
+
+Selecting predictors for predictive models is a very crucial step as having too many variable with many obseravtions can make it harder for models to perform well. Which is why after seeing my initial findings, I made some changes to this selection of predictors to optimize model performance and interpretability For example, I had initially used destination and carrier variables which then created over 50 dummy variabels with nmone of them significant.I also had the variable year whih i ha dthough wuold be important for capturing yearly delay rates.
+
+```{r}
+#selecting all the variables that might be useful
+model_df <- final_df_clean %>%
+  select(
+    DEP_DEL15, DAY_OF_MONTH, DAY_OF_WEEK, DISTANCE,
+    CRS_Dep_Hour, flights_per_day, flights_per_hour,
+    HourlyDryBulbTemperature, HourlyWindSpeed,
+    HourlyRelativeHumidity, HourlyVisibility,
+    HourlyWindDirection, HourlyPrecipitation,
+    HourlyAltimeterSetting, HourlyDewPointTemperature, HOT_DEST, HOT_CARRIER
+  )
+
+library(caret)
+
+set.seed(123)
+
+train_index <- createDataPartition(model_df$DEP_DEL15, p = 0.7, list = FALSE)
+
+train_df <- model_df[train_index, ]
+test_df  <- model_df[-train_index, ]
+
+```
+
+# 5.2 Statistical Model 1: Logistic Regression
+
+## 5.2.1 Why Logistic Regression?
+
+I wanted to start my predictive modeling by first using a logistic regression model. This is because I only had some basic knowledge and initial guesses about how my variables might affect delays, and I wanted to more clearly see which variables had the most impact and which might be insignificant compared to my initial assumptions. To do this, I needed a model that could serve as a clear baseline. Logistic regression seemed like the right choice because it is easy to interpret and provides clear information on which variables influence the target, by how much, and whether those effects are statistically significant.
+
+Because I wanted to use this model mainly to better understand my variables and their relationship with delays, interpretation was my main priority at this stage, especially since I suspected that some variables were multicollinear. My plan was to focus more on improving prediction accuracy in later steps through variable selection and more complex models such as random forest.Furthermore, considering that I am trying to predict whether a flight will get delayed or not using a binary response variable, logistic regression seemed like the logical choice for predicting the probability of a delay. My selected key variables also played a crucial part in this decision, because I needed a model that would perform well with both continuous and binary variables, which logistic regression handles well.
+
+## 5.2.2  Logistic Regression 
+
+The table below displays the results from the logistic regression on how my predictors affect the probability that a flight leaving from CMH in December will get delayed. Based on the results, the most significant variables are high flight volume carriers, day of the month, scheduled departure hour, flights per day, hourly wind speed, hourly relative humidity, and hourly altimeter setting.
+
+The most significant variale is revealed as to be carriers by flight volume. Carriers whose flight volume is in the top qurtile have about 34% lower odds of being delayed. As I previously identified, these carriers are Southwest Airlines, Republic Airways, Envoy Air, American Airlines, Delta Air Lines. This is an interersting finding that might be justified with higher volumes of flights meaning more complex logistics which might cause delay stack ups during the day, causing a chian recation of delays. These are clearly very high odds and something passengers should be aware of when buying flight tickets in December which depart from CMH. If there are multiple carrier options for the same destination, around the same times passengers could choose a carrier which does not have such high flight volume.
+
+Moving on to time variables which hold the next highest coefficients. We can see that as scheduled flight hour gets later in the day, the likleihood of delays increase. The same effect but on a smaller scale is seen from the day of month variable as well. As it gets later in the month, and later in the day, the chances of delay increase. This finding is in line with what we previously saw on the heatmap. This increase in delay chances makes sense, as we have previously established that there are fewer flights in the evenings at CMH, and delays can stack up throughout the day. For increases within the month of December, it also makes sense, as college students come back mid-December and Christmas travel happens toward the end of the month.
+
+Next, in the weather variables, we can see that hourly wind speed and hourly relative humidity seem to be the only two that actually have a significant effect on delay rates. Both show a strong positive relationship, meaning that as wind speed and humidity increase, the probability that a flight will be delayed also increases. Winds with higher speed can mean greater risk for turbulence, whereas higher humidity generally indicates wetter conditions like rain, fog, or snow. So it makes sense that as these factors increase, they pose a greater risk for the aircraft, as well as the safety and comfort of the flight, which would be a reason for a delay.
+
+Overall, all of these findings about carrier and destination delay trends, time, and weather seem very relevant and logical. However, I am surprised to see that other weather variables such as visibility, wind direction, and altimeter setting did not have enough effect on delay rates. I also expected traffic at CMH to play a larger role, as flights per day and flights per hour were not as influential as I had expected them to be. I am curious to see if multicollinearity between certain variables was reduced through predictor selection like LASSO, or if a model like random forest, which is more flexible was used, would the importance for these variables change?
+
+```{r}
+logit_model <- glm(DEP_DEL15 ~ ., data = train_df, family = binomial)
+
+library(broom)
+library(kableExtra)
+
+logit_table <- tidy(logit_model) %>%
+  mutate(
+    estimate = round(estimate, 3),
+    std.error = round(std.error, 3),
+    statistic = round(statistic, 3),
+    p.value = round(p.value, 4)
+  ) %>%
+  rename(
+    Term = term,
+    Coefficient = estimate,
+    Std_Error = std.error,
+    Z_value = statistic,
+    P_value = p.value
+  )
+
+logit_table %>%
+  kable("html", caption = "Logistic Regression Coefficient Table") %>%
+  kable_styling(full_width = FALSE, bootstrap_options = c("hover", "striped"))
+```
+
+## 5.2.3 Logistic Regression Performance Evaluation
+
+The netx stpe in the analysis is to evaluate how well logistic regression perfomred in predicting delayed flights in december in CMH. To do this we can utilized the confusin matrix which reveals how much of on-time and delayed flights the model predicted accuartely. We can see that logistic regression predicted 4677 on time flights aand 22 delayed flight accuartely gettig us the 83% accuarcy.Whihc seems good but is misleading as the model may have predicted very few delayed flights because they make up a smaller portion of the data compared to on-time flights. So classiting all flights as on-time, the model liely would have still achieved a high accuarcy due tot the small portion of dleayed flights. This assumtioun is supported by the model's very low sensitivty levcel of 0.02% when predicting delays. This value emans the model wa sonly able to predict 22 of teh actual delayed flights out of a total of 930. So basically it classified almost all flights as on-time, missing almost all the delayed flights. This is very concerniga sits hows that the model is performing as the threshold for classification delays is almost 1 menaing it classifies almost everything as on-time. But the threshold for classificiation is actually 0.5. So the fact that its acting as the threshold is much higher means thatv the current threshold is too high to precit delays with the  imbalance in my dataset.  
+
+The drasticaly low 0.02% sensiticity also makes the other metrics untrustworthy as its very expected that soecificity would be so high at 99% if sensitictiy is so low due to their trade off. But, its still a good way of seeing how biased the model is  towards on time flights. Therefore, the confusion matrix revelas that the mdoel did not perform well and should not be tyrusted blindly as it did not handle the imbalance in my data set well.  AUC is equal to 0.67. ROC curve 
+
+
+```{r}
+library(pROC)
+library(tidyverse)
+
+# --- Predictions ---
+logit_prob <- predict(logit_model, newdata = test_df, type = "response")
+logit_pred <- ifelse(logit_prob > 0.5, 1, 0)
+
+cm <- confusionMatrix(
+  factor(logit_pred, levels = c(0,1)),
+  factor(test_df$DEP_DEL15, levels = c(0,1)),
+  positive = "1"
+)
+
+roc_obj <- roc(test_df$DEP_DEL15, logit_prob)
+
+# 
+cm_df <- as.data.frame(cm$table)
+
+cm_df %>%
+  kable("html", caption = "Confusion Matrix (Logistic Regression)") %>%
+  kable_styling(full_width = FALSE,
+                bootstrap_options = c("striped", "hover"))
+
+# 
+perf_table <- tibble::tibble(
+  Metric = c(
+    "Accuracy",
+    "Sensitivity (Detect Delays)",
+    "Specificity (Detect On-time)",
+    "Precision",
+    "Negative Predictive Value",
+    "AUC"
+  ),
+  Value = c(
+    round(cm$overall["Accuracy"], 4),
+    round(cm$byClass["Sensitivity"], 4),
+    round(cm$byClass["Specificity"], 4),
+    round(cm$byClass["Pos Pred Value"], 4),
+    round(cm$byClass["Neg Pred Value"], 4),
+    round(auc(roc_obj), 4)
+  )
+)
+
+perf_table %>%
+  kable("html", caption = "Logistic Regression Performance Metrics") %>%
+  kable_styling(full_width = FALSE,
+                bootstrap_options = c("striped", "hover"))
+
+# --- Plot ROC ---
+plot(roc_obj, col = "red4", lwd = 3, main = "Logistic Regression ROC Curve")
+auc(roc_obj)
+
+
+
+```
+
+## 5.3 Logistic Regression With Cross Validated Threshold
+## 5.3.1 Why Threshold Adjustment with CV?
+
+The confusion matrox of the initial logistic regrssion, revelaed how biased the model was towards predicting on-time flights, likley due to the imbalance in number between on time and delayed flights. Therefore, the traditional 0.5 threshold for classfying whether a flight will get delayed or not did very poorly for my goal of predicting delays. Considering how low 0.02% is for detecting delays, I realized an adjustment of the threshold for classification was necessary. 
+
+Howveer, we cannot just adjust the threshold randomly. Alower threshold means more positive classifications which in our case translates to more delay classifications. Whcih is what i am trying to achieve by increasing 0.02% sensitivity. Howver, this comes with a cost of lower specificity, meaning lower detection of on-time flights. Low detection of actual on-time flights is also a concerning situation as it means more on-time flights are getting classified as delayed which can ahve even more drsatic costs than mislclassfiying a delay as on-time. TFrom a poasseger perspective for exmaple, if a pass ege rhtinks their flight is liklely to be delayed and they leave their house with that thinking but the flight isnt actualy cancelled, they jsut missed tehir fligjt. This is clealry a worse situation than waiting at the aorport more bhecause an on-time prediccted flight got dleayed. So, ota cruical that thresholdisnt so ow that we get a large decrease in specificity, while also achieving our goal of increasing sensitivity, detecting more actual delayed flights.
+
+With tehse goals in mind, I decided to find the optimal threshold that would handle the imbalance in my dataset while not costing specificty too much. Which is why I am running a cross validation to find the optimal threshold value. 
+
+```{r}
+library(kableExtra)
+
+logit_model <- glm(
+  DEP_DEL15 ~ .,
+  data = train_df,
+  family = binomial
+)
+# predicted probabilities on training data
+train_prob <- predict(logit_model, newdata = train_df, type = "response")
+
+# ROC curve (training)
+roc_train <- roc(train_df$DEP_DEL15, train_prob)
+
+# optimal threshold 
+opt_thresh <- coords(
+  roc_train,
+  x = "best",
+  best.method = "youden",
+  ret = "threshold"
+)
+
+# get to numeric scalar 
+opt_thresh <- as.numeric(opt_thresh)
+
+opt_thresh
+# predicted probabilities on training data
+train_prob <- predict(logit_model, newdata = train_df, type = "response")
+
+
+test_df$DEP_DEL15 <- factor(test_df$DEP_DEL15, levels = c(0,1))
+
+# predicted probabilities on test set
+test_prob <- predict(logit_model, newdata = test_df, type = "response")
+
+# cv threshold
+logit_pred_cv <- ifelse(test_prob >= opt_thresh, 1, 0)
+logit_pred_cv <- factor(logit_pred_cv, levels = c(0,1))
+
+
+stopifnot(length(logit_pred_cv) == nrow(test_df))
+
+cm_logit_cv <- confusionMatrix(
+  logit_pred_cv,
+  test_df$DEP_DEL15,
+  positive = "1" # delays are represented as 1 
+)
+
+# build confusion matrix with the real and predicted counts 
+cm_table <- as.data.frame(cm_logit_cv$table)
+names(cm_table) <- c("Actual", "Predicted", "Count")
+
+cm_table %>%
+  kable("html",
+        caption = "Logistic Regression Confusion Matrix (CV Threshold)") %>%
+  kable_styling(full_width = FALSE,
+                bootstrap_options = c("striped", "hover"))
+
+cm <- cm_logit_cv$table
+
+TN <- cm["0","0"]
+FP <- cm["0","1"]
+FN <- cm["1","0"]
+TP <- cm["1","1"]
+
+# confusion metrics manually to prevent an error
+accuracy    <- (TP + TN) / sum(cm)
+sensitivity <- TP / (TP + FN)   # delays
+specificity <- TN / (TN + FP)   # on-time
+precision   <- TP / (TP + FP)   
+
+metrics_logit_cv <- data.frame(
+  Metric = c(
+    "Accuracy",
+    "Sensitivity (Recall – Detect Delays)",
+    "Specificity (Detect On-Time)",
+    "Precision (PPV)"
+  ),
+  Value = round(
+    c(accuracy, sensitivity, specificity, precision),
+    3
+  )
+)
+
+#perfomance metrics of log reg with cv threshold
+metrics_logit_cv %>%
+  kable("html",
+        caption = "Logistic Regression Performance Metrics (CV Threshold)") %>%
+  kable_styling(full_width = FALSE,
+                bootstrap_options = c("striped", "hover"))
+
+roc_logit_cv <- roc(test_df$DEP_DEL15, test_prob)
+
+# plot ROC Curve with CV threshold
+plot(
+  roc_logit_cv,
+  col = "red4",
+  lwd = 3,
+  main = "Logistic Regression ROC Curve (CV Threshold)"
+)
+
+auc_value <- auc(roc_logit_cv)
+
+auc_table <- data.frame(
+  Metric = "AUC",
+  Value = round(as.numeric(auc_value), 3)
+)
+
+#AUC
+auc_table %>%
+  kable("html",
+        caption = "Logistic Regression AUC Score (CV Threshold)") %>%
+  kable_styling(full_width = FALSE,
+                bootstrap_options = c("striped", "hover"))
+
+
+```
+## 5.3.3  Logistic Regression With CV Threshold Findings & Performance Evaluation
+The cross validation reuslts show that the optimized threshold for maximizing sensiticity and specificity was 0.157, which is much lower than the thrshold inmy initial logistic regressio. 0.5. This large drop supports my earlier assumption that thrshold ahd to decrease largely as when it was at 0.5 it was acying as it was much higher by classfying almost all delayed flights as on-time. 
+
+With this optimized threshold, the mdoel detects 606 of delayed flights correctly while  misclassfying 1877 of actual delayed as on time. This gives us the sensitivity value of 24% Alhtoyugh this is still relatively low, revealing taht the mdoels stoll misses majority of delayed flights and predocts them as on-time, its muuch better than initial logistic regression's 2% sensitivity. The specificity is still qyite high at 89% showing us that the model is still veyr biased towards on-time flights but at least better than the 99% in teh initial logistci regresion. Also, consideirng the higehr costs of misclassfying an on-time flight having a mdoel biased towards on-time flights than delayed flights is preffered.
+
+In addition, precision grew from 42% to 65% from the initial logistci regression. Which clearly reflects the model's better performance with classfying true positives meaning actual delays. 
+
+
+# 5.4 Predictor Selection: LASSO 
+
+## 5.4.1 Why LASSO
+
+In my dataset, I have certain variables that I am sure are very correlated with each other. For example, destination and distance are likely to be very correlated, as they are both proxies for airtime, meaning how long a flight is. The same applies to the engineered traffic metrics such as flights_per_day and flights_per_hour, as it can be expected that a day with a high number of flights will also have high flights per hour. These multicollinearities can reduce the performance of my logistic regression by making coefficient estimates unstable and harder to interpret.
+
+Furthermore, my baseline logistic regression revealed that my initial selection of variables, which I thought would be important for delay prediction based on my initial knowledge, were mostly not as important as I expected, especially the weather variables. Therefore, I wanted to use LASSO to reduce multicollinearity and better understand the real impact of predictors that multicollinearity in the initial logistic regression might have overshadowed. I thought Lasso would be a good choice for these specific goals as it shrinks insignificant variables coefficients to 0 and therefore selects predictors that have non-zero coefficients Giving us a much simpler predictor set to work with in the end.
+
+## 5.4.2 Cross-Validation & Lambda Selection
+
+To best identify the penalty coefficients that variables would receive, I wanted to run cross-validation. By determining the best lambda value that penalizes the coefficients, we ensure that only variables that improve prediction stay in the model. Cross-validation helps us prevent penalizing too much or penalizing too little. The plot below reveals that the optimized lambda value occurs at around log(λ) ≈ −5 where misclassification error is minimized. This corresponds to 8 predictors as seen on the upper x-axis of the plot.
+
+```{r}
+
+library(glmnet)
+library(caret)
+library(dplyr)
+library(tidyr)
+
+set.seed(123)
+
+# Impute missing values
+pre <- preProcess(train_df, method = "medianImpute")
+train_imp <- predict(pre, train_df)
+
+# create model matrix
+x_train <- model.matrix(DEP_DEL15 ~ ., data = train_imp)[, -1]
+y_train <- train_imp$DEP_DEL15
+
+cat("Rows in x:", nrow(x_train), "  Rows in y:", length(y_train), "\n")
+
+# cross-validated LASSO
+cv_lasso <- cv.glmnet(
+  x_train,
+  y_train,
+  alpha = 1,
+  family = "binomial",
+  nfolds = 10,
+  type.measure = "class"
+)
+
+#plot the cv lambda 
+plot(cv_lasso)
+
+lambda_min <- cv_lasso$lambda.min
+lambda_1se <- cv_lasso$lambda.1se
+
+cat("Lambda min:", lambda_min, "\n")
+cat("Lambda 1se:", lambda_1se, "\n")
+
+
+```
+
+## 5.4.3 LASSO Variable Selection Results
+
+After determining the best lambda value, the next step is to select predictors by running LASSO at the optimized lambda level, log(λ) ≈ −5. The table below displays the results of the LASSO logistic regression. The most significant factors seem to be carriers with top flight volume with a negative coefficient. Meaning that... Followed by scheduled departure hour, HourlyWindSpeed, day of month, and hourly relative humidity.
+
+So far, the list and ordering seem very much in line with the initial logistic regression findings. However, different than the initial logistic regression, LASSO also selected hourly dry bulb temperature (−0.0016). This is important because hourly dry bulb temperature measures tempearture that is independent of humidity, so lower dry temperature would mean colder weather therefore more risk and more delays. Although its coeeficient is small it is still worth to point out that once lasso dealt with multicolliniearity the true significnaced of this variable was revelaed. Lastly, Lasso also pushed variables such as flights per day and distance to much smaller importance. This might be again because of multicollinieraity as flights per day can be correlated with date and time variables as both reflect high traffic data.
+
+Overall, LASSO helped simplify the model by reducing the number of predictors that were not contributing much to delay prediction, mostly weather variables like precipitation, wind direction etc. While also revealing the more isolated effects of certain variables like hourly dry bulb temperaturer And it definitely confirmed our early finding from the logistic regression that the most significant factors for delay prediction seems to be carriers by flight volume, scheduled flight hour, day of month and hourly wind speed.
+
+```{r}
+
+# Fit final model using lambda.min
+lasso_model <- glmnet(
+  x_train,
+  y_train,
+  alpha = 1,
+  lambda = lambda_min,
+  family = "binomial"
+)
+
+lasso_coef <- coef(lasso_model)
+
+# Extract nonzero coefficients
+coef_df <- data.frame(
+  Term = rownames(lasso_coef),
+  Coefficient = as.numeric(lasso_coef)
+) %>%
+  filter(Coefficient != 0)
+
+# create table
+lasso_table <- coef_df %>%
+  mutate(Coefficient = round(Coefficient, 4))
+
+lasso_table %>%
+  kable("html", caption = "LASSO Selected Variables & Coefficients (λ_min)") %>%
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover"))
+
+
+# 
+lasso_df <- data.frame(
+  term = rownames(lasso_coef),
+  coefficient = as.numeric(lasso_coef[,1])
+) %>% 
+  filter(term != "(Intercept)") %>% 
+  filter(coefficient != 0) %>% 
+  mutate(
+    direction = ifelse(coefficient > 0, "Positive", "Negative"),
+    abs_coef = abs(coefficient)
+  )
+
+```
+
+# 5.5 Statistical Model 2: Random Forest
+
+## 5.5.1 Why Random Forest?
+
+After seeing logistic regression and LASSO’s predictor selection, I was curious to see how random forest would perform in prediction and which variables it would see as most important compared to the previous models. I know that random forest handles non-linear relationships and multicollinearity better, so I was curious to see which predictors it would deem as important and how they would compare to logistic regression and LASSO, and how much this better handling of multicollinearity would change predictive performance.
+
+In terms of predictive performance, especially after seeing how unsuccessful the initial logistic regression (threshold = 0.5) was at predicting delayed flights due to the imbalance in my data, I was very curious to see how random forest's predictive performnace as I knew it handled imbalance much better. I was specificaly interested to see how it would perform compared to the cross validated threshold logistic regression: would it be able to perform better without the need for running cross validation?
+
+## 5.5.2  Random Forest Coefficient Findings
+
+The Random Forest variable importance table reveals that distance is by far the most influential variable in predicting whether a flight will get delayed or not. The high Mean Decrease Gini score implies that there is high variability in distance, allowing it to be split into different categories that end up contributing significantly to predicting whether a flight gets delayed or not. I would not have thought that distance would be a more significant factor in predicting delays than weather, but logically, distance not only captures exposure to different weather conditions, it also captures exposure to other factors such as risk, operational complexity, and overall time in the air. In the end, it makes sense that distance is the most significant variable, as it captures many factors within itself and is repeatedly used for splits in the Random Forest.
+
+The second most important variable is scheduled departure hour, which aligns with what logistic regression and LASSO classified as an important predictor as well. The time a flight is scheduled clearly plays a huge role in whether a flight will get delayed or not for flights departing from CMH in December.
+
+The most important additional finding from the table is that the Random Forest places weather variables toward the top of the list. Hourly pressure, relative humidity, temperature, wind speed and direction, and dew point all play a role in predicting delays. Visibility and precipitation, however, appear lower on the list compared to other factors, which is interesting.
+
+Compared to other time-related variables such as day of the week or day of the month, the hour a flight is scheduled appears to be much more significant in predicting delays. I found this interesting because these variables all follow similar logic related to high- and low-traffic periods, yet scheduled hour is clearly much more influential. This might be because scheduled hour captures more specific timing information that helps when predicting whether a flight gets delayed or not, whereas other metrics such as day of the month and day of the week are more general. Also technically, scheduled hour captures some of the effects of day and month as well. For example, December 24th on a Wednesday might experience high delays due to increased traffic and demand, but scheduled hour captures these effects at an hourly level while also capturing more hour-specific factors that other time metrics do not, since they are measured over a larger time span.
+
+
+# 5.5.3  Random Forest Performance Findings & Evaluation
+
+The confusion matrix for random forest reveals that the model predicted 4,420 on-time flights and 173 delayed flights correctly, ending up at an 83% accuracy. Which is quite high and shows that the model is accurate in classifying flights overall. But accuracy is not sufficient; we need to see the exact categories the model predicted well or poorly. Which is revealed by the precision and sensitivity metrics. The model has low sensitivity, meaning low performance on predicting actual delayed flights, with only predicting 173 out of 460, which accounts for 37.6% of delayed flights. This means the model missed 287 out of 460 delayed flights. This low ratio is opposite of the high specificity, with the model predicting 4,420 out of 5,177 on-time flights correctly. This low percentage of precision and high percentage of specificity shows us the tradeoff between those two metrics. The model is again biased towards predicting on-time flights rather than delayed flights as was the case in logictic regression as well. The dataset’s imbalance in the amount of delayed and on-time flights celarly affects random fiorest's perofmrnace as well. Causing this large difference between sensitivity and specificity, which would explain why the model seemed to predict many delayed flights as on-time.
+
+```{r}
+library(randomForest)
+library(caret)
+library(dplyr)
+
+set.seed(123)
+
+pre <- preProcess(train_df, method = "medianImpute")
+train_rf <- predict(pre, train_df)
+test_rf  <- predict(pre, test_df)
+
+
+train_rf$DEP_DEL15 <- factor(train_rf$DEP_DEL15, levels = c(0,1))
+test_rf$DEP_DEL15  <- factor(test_rf$DEP_DEL15, levels = c(0,1))
+
+
+# train random forest 
+rf_model <- randomForest(
+  DEP_DEL15 ~ .,
+  data = train_rf,
+  ntree = 500,
+  mtry = floor(sqrt(ncol(train_rf) - 1)),
+  importance = TRUE
+)
+
+
+# predict on test data
+rf_pred <- predict(rf_model, newdata = test_rf, type = "class")
+rf_prob <- predict(rf_model, newdata = test_rf, type = "prob")[, 2]
+
+
+# build confusion matrix with 1=delay
+rf_cm <- confusionMatrix(
+  rf_pred,
+  test_rf$DEP_DEL15,
+  positive = "1"
+)
+
+#
+cm_table <- as.data.frame(rf_cm$table)
+names(cm_table) <- c("Actual", "Predicted", "Count")
+
+cm_table %>%
+  kable("html", caption = "Random Forest Confusion Matrix") %>%
+  kable_styling(full_width = FALSE,
+                bootstrap_options = c("striped", "hover"))
+
+
+# manually compute cm metrocs due to an error
+cm <- rf_cm$table
+
+TN <- cm["0", "0"]
+FP <- cm["0", "1"]
+FN <- cm["1", "0"]
+TP <- cm["1", "1"]
+
+accuracy    <- (TP + TN) / sum(cm)
+sensitivity <- TP / (TP + FN)   # detect delays
+specificity <- TN / (TN + FP)   # detect on-time
+precision   <- TP / (TP + FP)   
+
+
+# build performance Metrics Table
+metrics_table <- data.frame(
+  Metric = c(
+    "Accuracy",
+    "Sensitivity (Detect Delays)",
+    "Specificity (Detect On-Time)",
+    "Precision"
+  ),
+  Value = round(
+    c(accuracy, sensitivity, specificity, precision),
+    3
+  )
+)
+
+metrics_table %>%
+  kable("html",
+        caption = "Random Forest Performance Metrics") %>%
+  kable_styling(full_width = FALSE,
+                bootstrap_options = c("striped", "hover"))
+
+
+# ROC Curve and AUC
+roc_rf <- roc(test_rf$DEP_DEL15, rf_prob)
+
+plot(roc_rf,
+     col = "orange",
+     lwd = 3,
+     main = "Random Forest ROC Curve")
+
+auc_value <- auc(roc_rf)
+
+auc_table <- data.frame(
+  Metric = "AUC",
+  Value = round(as.numeric(auc_value), 3)
+)
+
+auc_table %>%
+  kable("html",
+        caption = "Random Forest AUC Score") %>%
+  kable_styling(full_width = FALSE,
+                bootstrap_options = c("striped", "hover"))
+
+
+# build variable importance table
+var_imp <- importance(rf_model)
+
+var_imp_df <- data.frame(
+  Variable = rownames(var_imp),
+  MeanDecreaseGini = round(var_imp[, "MeanDecreaseGini"], 3)
+) %>%
+  arrange(desc(MeanDecreaseGini))
+
+var_imp_df %>%
+  kable("html",
+        caption = "Random Forest Variable Importance (Gini)") %>%
+  kable_styling(full_width = FALSE,
+                bootstrap_options = c("striped", "hover"))
+
+```
+
+
+# 6. Comparison Summary
+## 6.1 Comparison of Models 
+
+It is apparent that when metrics to control for the class imbalance, such as threshold adjustment and cross validation, were not implemented, random forest performed much better at predicting delays than logistic regression. This can be seen by how the initial logistic regression model only predicted about 2% of delayed flights, mainly classifying flights as on-time simply because they dominated the dataset.
+
+In contrast, random forest handled the class imbalance much better without needing any optimization through cross validation, achieving a substantially higher sensitivity and correctly identifying a much larger portion of delayed flights. While the model still showed some bias toward on-time flights, it was far more effective at detecting delays than the baseline logistic regression model.
+
+```{r}
+
+comparison_table <- data.frame(
+  Model = c(
+    "Logistic Regression (Threshold = 0.5)",
+    "Logistic Regression (CV-Optimized Threshold)",
+    "Random Forest"
+  ),
+  Accuracy = c(
+    0.8336,
+    0.610,
+    0.815
+  ),
+  Sensitivity = c(
+    0.0237,
+    0.244,
+    0.376
+  ),
+  Specificity = c(
+    0.9936,
+    0.897,
+    0.854
+  ),
+  Precision = c(
+    0.4231,
+    0.652,
+    0.186
+  ),
+  AUC = c(
+    0.6706,
+    0.6706,
+    0.68
+  )
+)
+
+comparison_table %>%
+  mutate(across(-Model, ~ round(.x, 3))) %>%
+  kable(
+    "html",
+    caption = "Comparison of Model Performance for Predicting Flight Delays"
+  ) %>%
+  kable_styling(
+    full_width = FALSE,
+    bootstrap_options = c("striped", "hover", "condensed")
+  )
+
+```
+## 6.2 Comparison of Variable Importance  
+
+All three models saw scheduled hour of the flight, distance, day of month, and hourly relative humidity as significant predictors in predicting delays in December from CMH. Interestingly, random forest categorized flight volume by carrier as low importance, while it was the most important variable in LASSO and logistic regression. Hourly visibility, destination by flight volume, and flights per hour were seen as low importance by all three models. This was surprising, as my initial hypothesis when creating those congestion metrics was that they would be of high importance.
+
+```{r}
+library(tibble)
+
+#key variables 
+variable_importance <- tibble(
+  Predictor = c(
+    "DISTANCE",
+    "CRS_Dep_Hour",
+    "DAY_OF_MONTH",
+    "flights_per_day",
+    "flights_per_hour",
+    "HourlyWindSpeed",
+    "HourlyRelativeHumidity",
+    "HourlyDryBulbTemperature",
+    "HourlyVisibility",
+    "HOT_CARRIER",
+    "HOT_DEST"
+  ),
+  `Logistic Regression` = c( 
+    "Yes", "Yes", "Yes", "Yes", "No",
+    "Yes", "Yes", "No", "No", "Yes", "No"
+  ),
+  `LASSO ` = c(
+    "Yes", "Yes", "Yes", "Yes", "No",
+    "Yes", "Yes", "Yes", "No", "Yes", "No"
+  ),
+  `Random Forest Importance` = c(
+    "High", "High", "Medium", "Medium", "Medium",
+    "Medium", "High", "Medium", "Low", "Low", "Low"
+  )
+)
+
+# create table showing how each classified the varibles' importance
+variable_importance %>%
+  kable(
+    "html",
+    caption = "Predictor Importance Across Logistic Regression, LASSO, and Random Forest"
+  ) %>%
+  kable_styling(
+    full_width = FALSE,
+    bootstrap_options = c("striped", "hover", "condensed")
+  )
+
+```
+
+# 7. Conclusion
+
+In conclusion, this analysis aimed to predict departure flight delays in John Glenn Airport in December by looking at 2018-2019 and 2022-2024 flight and weather data. In this analysis, I tried to answer the question "can we predict flight delays by looking at flight and weather characteristics as well as the flight scale of carrier and destination?" I selected a subset of key weather, flight and engineered congestion attributes that I thought would be key in predicting delays. These included hourly weather factors that captured pressure, humidity, visibility, and were proxy to giving insights into certain weather conditions such as high pressure and humidity proxy for rain. But, I also had flight and congestion characteristics such as day of month, day of week, scheduled departure hour, flights per day, flights per hour. I had hope these would capture the holiday effects in the month of December and would be helpful in pinpointing which times were more prone to delay in December. I also included the top quartile of destination and carriers that flew from CMH to use the number of flights as proxy for operational capacity and understand the relationship between scale of carriers and destinations and delays.
+
+To address these points the best, I used 3 models and 1 predictor selection in this analysis. First was logistic regression which revealed to me how imbalanced my data set was with the model only predicting about 2% of the delayed flights due to the small portion delayed flights constituted against on time flights. The model performed quite poorly due to not handling the class imbalance in my data set. Which is why I ran another logistic regression with optimized threshold to increase the model's capability of handling the class imbalance and get better prediction results. Which worked as the prediction of actual delays increased by about 24% without misclassifying on time flights on a dangerous level. Although 24% seems low, we can conclude that with the delays being more uncommon than on time flights and limitations of the selected predictors this seems to be a relatively high predictive performance logistic regression can produce with the given constraints. Especially because it had given a similar response even before adding the 2018-2019 years the reason for this predictive performance is likely due to variables' limitation in explaining delays.
+
+However, its findings on coefficients were still important as it gave me the initial understanding of my key variables' relation to delays. Therefore, through this model, I found how much and in what way my variables affected delays. In order their significance went like this: a carrier that has flights in the top quartile which are Southwest Airlines, Republic Airways, Envoy Air, American Airlines, and Delta Air Lines increases the likelihood for a delay at a much larger scale than all the other flight and weather variables. This finding reveals the relationship between carrier operational scale and flight delays as larger scale carriers might be more prone to delays due to their complex logistics which might cause delays to stack up on a day to day basis. Because they fly so many flights they have higher exposure to other factors that might contribute to delays such as weather. For example, a smaller scale carrier that operates 1 flight on a rainy hour is less affected from the weather compared to Delta Airlines which might have 5 flights in one hour, making it more prone to delays. So, technically the variable carrier also encapsulated the effects of other variables such as weather on delays in an indirect way.
+
+Distance of the flight grew so did the likelihood for delays meaning longer flights are more prone to delays which seemed very intuitive. Similarly, flights scheduled later in the day were more prone to getting delayed. This was an interesting finding as it is likely due to CMH having less flights after 8 pm. Which might mean that as it gets later in the day, operational capacity in CMH decreases as there are less flights meaning less workers. So, when an issue that may cause a delay rises there is less capacity to solve the issue, causing more delays later in the day.
+
+Furthermore, as humidity and wind speed increases flights likelihood of delay also increases. Humidity is a proxy for rain therefore although there are other factors go into determining if it rains or not we can say that high humidity weather or rainy weather increases the chances of flights getting delayed. Similarly, increased wind speed increases the chances of delays which is again very intuitive as it means more likelihood of turbulence and overall greater operational risk. And lastly, logistic regression found flights per day significant as well revealing that days where CMH has more than average flights are days where flights are more likely to get delayed. This finding implies that certain dates such as the days in the week of academic year ending in mid December, as well as the week of Christmas is very likely to be more prone to delays as there is more flight demand and therefore more flights operated.
+
+These findings on the key variables relationship to delays were further supported by my next model random forest's variable  importance results. Random forest handled the class imbalance in my data set and multicollinearity within my variables much better than my initial and cross validated threshold logistic regression. Therefore, its findings on coefficients are significant as well. And although it classified the effect of distance and scheduled hour of the flight as the top most significant in predicting delays similar to logistic regression, it put higher importance to weather variables than logistic regression had. This suggests that other weather variables like altimeter setting and temperature factors are significant as well.
+
+Overall, random forest was the best model to predict delays as it gave the highest sensitivity rate of 37%. Logistic regression achieved a lower rate with about 24% with the cross validated threshold, and about 2% at the initial step. Which shows that although these predictors were relevant and significant in predicting delays, better predictions on delays can be made with a different subset of predictors. But, given the limitations of prediction performance and variable importance results, we can conclude that passengers can decrease the likelihood of their flight getting delayed in December in CMH by selecting an earlier flight on a less traffic day, and choosing a carrier that flies less flights.  While also expecting an increase in the likelihood of their flight getting delayed if the weather is rainy, or has high relative humidity or wind speed.
+
+
+# 8.Citations
+1) u.s. department of transportation, bureau of transportation statistics. (2025). marketing carrier on-time performance data from transtats (dataset). https://www.transtats.bts.gov/DL_SelectFields.aspx?gnoyr_VQ=FGK&QO_fu146_anzr=b0-gvzr
+2) National Centers for Environmental Information. (2025). Climate Data Online (CDO) data search [dataset]. https://www.ncei.noaa.gov/cdo-web/search
+3) OpenAI. (2025). ChatGPT [Large language model]. https://chat.openai.com/
+4) chatgpt was used to assist with code generation in confusion matrix and data cleaning 
