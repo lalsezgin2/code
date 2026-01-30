@@ -8,7 +8,6 @@ date: "2025-12-18"
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-
 ## 3.1 CMH Flight Data Cleaning
 As I downloaded 2018 and 2019 later separately, I first started my cleaning process by combining them. I then converted the flight date into a date format and reformatted the scheduled departure time to extract the scheduled hour and minute of each flight. This was a critical step as I had planned to merge each flight with the current weather conditions during that time by the hour. I then filtered the data to only include flights with origin CMH so that the analysis only focused on flights departing from John Glenn International Airport. After that, I loaded the 2022–2024 flight data and applied the same cleaning steps so all years were consistent.
 ```{r}
